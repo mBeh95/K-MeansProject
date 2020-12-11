@@ -3,7 +3,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Scanner;
-
+import java.io.*;
+import java.io.FileWriter;
 public class KMeans {
 	public static void main(String args[]) throws IOException {
 		Scanner sc = new Scanner(System.in);
@@ -24,7 +25,7 @@ public class KMeans {
 		readRecords(filePath, fileName, points, xAttribute, yAttribute);
 
 		// Sort the points based on X-coordinate values
-		sortPointsByX(points);
+		// sortPointsByX(points);
 
 		// Input the number of iterations
 		System.out.print("Enter the maximum number of iterations: ");
@@ -33,6 +34,8 @@ public class KMeans {
 		// Input number of clusters
 		System.out.print("Enter the number of clusters to form: ");
 		int clusters = sc.nextInt();
+
+		long startTime = System.currentTimeMillis();
 
 		// Calculate initial means
 		double[][] means = new double[clusters][2];
@@ -46,18 +49,27 @@ public class KMeans {
 		ArrayList<Integer>[] newClusters = new ArrayList[clusters];
 
 		for(int i=0; i<clusters; i++) {
-			oldClusters[i] = new ArrayList<Integer>();
+			oldClusters[i] = new ArrayList<Integer>(); // each centroid contains a list of points aka its "cluster group"
 			newClusters[i] = new ArrayList<Integer>();
 		}
 
 		// Make the initial clusters
-		formClusters(oldClusters, means, points);
+		formClusters(oldClusters, means, points,false);
 		int iterations = 0;
 
 		// Showtime
 		while(true) {
-			updateMeans(oldClusters, means, points);
-			formClusters(newClusters, means, points);
+      boolean debug = false;
+			updateMeans(oldClusters, means, points,false);
+      formClusters(newClusters, means, points,false);
+      
+      if (debug){
+        for (int i = 0 ; i < clusters;i++){
+          for (int item : newClusters[i]){
+            System.out.println("[master] cluster "+ i + " has point "+item);
+          }
+        }
+      }
 
 			iterations++;
 
@@ -66,13 +78,13 @@ public class KMeans {
 			else
 				resetClusters(oldClusters, newClusters);
 		}
-
 		// Display the output
-		System.out.println("\nThe final clusters are:");
 		displayOutput(oldClusters, points);
 		System.out.println("\nIterations taken = " + iterations);
 
 		sc.close();
+		long endTime = System.currentTimeMillis();
+  	System.out.println("time taken is " + ((endTime - startTime) / 1000)+" second(s)");
 	}
 
 	static int getRecords(String filePath, String fileName) throws IOException {
@@ -110,36 +122,47 @@ public class KMeans {
 			}
 	}
 
-	static void updateMeans(ArrayList<Integer>[] clusterList, double[][] means, double[][] points) {
+	static void updateMeans(ArrayList<Integer>[] clusterList, double[][] means, double[][] points, boolean debug) {
+    // clusterList.length = number of clusters
 		double totalX = 0;
-		double totalY = 0;
+    double totalY = 0;
+
 		for(int i=0; i<clusterList.length; i++) {
 			totalX = 0;
 			totalY = 0;
 			for(int index: clusterList[i]) {
 				totalX += points[index][0];
-				totalY += points[index][1];
-			}
+        totalY += points[index][1];
+        if (debug){
+          if (i == 0  || i == 1) System.out.println("cluster "+ i +" has point "
+          + index +", with pointX: "+points[index][0] + ", pointY: "+points[index][1]);
+        }
+      }
 			means[i][0] = totalX/clusterList[i].size();
-			means[i][1] = totalY/clusterList[i].size();
+      means[i][1] = totalY/clusterList[i].size();
+      // if (debug) System.out.println("means of "+i+" is "+means[i][0]+" / "+means[i][1]);
 		}
 	}
 
-	static void formClusters(ArrayList<Integer>[] clusterList, double[][] means, double[][] points) {
+	static void formClusters(ArrayList<Integer>[] clusterList, double[][] means, double[][] points, boolean debug) {
+
+
 		double distance[] = new double[means.length];
-		double minDistance = 999999999;
+		double minDistance = Integer.MAX_VALUE;
 		int minIndex = 0;
 
+
 		for(int i=0; i<points.length; i++) {
-			minDistance = 999999999;
+			minDistance = Integer.MAX_VALUE;
 			for(int j=0; j<means.length; j++) {
 				distance[j] = Math.sqrt(Math.pow((points[i][0] - means[j][0]), 2) + Math.pow((points[i][1] - means[j][1]), 2));
 				if(distance[j] < minDistance) {
 					minDistance = distance[j];
 					minIndex = j;
-				}
-			}
-			clusterList[minIndex].add(i);
+        }
+      }
+      if (debug) System.out.println("cluster "+minIndex+" add point "+i);
+			clusterList[minIndex].add(i); // with the current point i, point i will be assigned to closest centroid
 		}
 	}
 
@@ -169,13 +192,21 @@ public class KMeans {
 			newClusters[i].clear();
 		}
 	}
-
 	static void displayOutput(ArrayList<Integer>[] clusterList, double[][] points) {
+		// File myObj = new File("output.txt");
+		try {
+			 FileWriter myWriter = new FileWriter("filename.txt");
+
 		for(int i=0; i<clusterList.length; i++) {
 			String clusterOutput = "\n\n[";
-			for(int index: clusterList[i])
+			for(int index: clusterList[i]) {
 				clusterOutput += "(" + points[index][0] + ", " + points[index][1] + "), ";
-			System.out.println(clusterOutput.substring(0, clusterOutput.length()-2) + "]");
+	}
+         	myWriter.write(clusterOutput.substring(0, clusterOutput.length()-2) + "]");
 		}
+
+			myWriter.close();
+    } catch (Exception e)
+    {System.out.println("An error occurred.");e.printStackTrace();}
 	}
 }
